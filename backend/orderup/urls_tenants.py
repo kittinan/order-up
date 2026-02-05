@@ -1,9 +1,11 @@
-from django.urls import path
-from django.http import HttpResponse
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from store.views import MenuViewSet, TenantInfoView
 
-def tenant_home(request):
-    return HttpResponse(f"<h1>Welcome to {request.tenant.name}</h1>")
+router = DefaultRouter()
+router.register(r'menu', MenuViewSet, basename='menu')
 
 urlpatterns = [
-    path('', tenant_home),
+    path('api/tenant/', TenantInfoView.as_view(), name='tenant-info'),
+    path('api/', include(router.urls)),
 ]
