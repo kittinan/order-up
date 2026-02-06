@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TenantProvider } from "@/contexts/TenantContext";
+import { CartProvider } from "@/contexts/CartContext";
 
 export const metadata: Metadata = {
   title: "OrderUp",
@@ -16,7 +17,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased bg-gray-50 text-gray-900">
         <TenantProvider>
-          {children}
+          <CartProvider>
+            {children}
+          </CartProvider>
         </TenantProvider>
       </body>
     </html>

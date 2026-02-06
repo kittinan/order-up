@@ -19,6 +19,7 @@ SHARED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',  # CORS support for frontend
     'channels',
 )
 
@@ -37,10 +38,11 @@ TENANT_MODEL = "customers.Client" # app.Model
 TENANT_DOMAIN_MODEL = "customers.Domain" # app.Model
 
 MIDDLEWARE = [
-    'django_tenants.middleware.main.TenantMainMiddleware', # mandatory
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware (must be before TenantMainMiddleware)
+    'orderup.middleware.HeaderTenantMiddleware', # Custom: supports X-Tenant-Subdomain & X-Tenant-Host headers
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -99,6 +101,72 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# CORS Configuration
+if DEBUG:
+    # Allow all origins in development mode
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+    # Explicitly list allowed headers in uppercase as HTTP headers are case-insensitive
+    CORS_ALLOW_HEADERS = [
+        'content-type',
+        'x-tenant-host',
+        'x-tenant-subdomain',
+        'accept',
+        'authorization',
+    ]
+    CORS_ALLOW_METHODS = [
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'OPTIONS',
+    ]
+else:
+    CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',')
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOW_CREDENTIALS = True
+    CORS_ALLOW_HEADERS = [
+        'content-type',
+        'x-tenant-host',
+        'x-tenant-subdomain',
+        'accept',
+        'authorization',
+    ]
+    CORS_ALLOW_METHODS = [
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'OPTIONS',
+    ]
+
+# Logging for debugging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'orderup': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}
 
 CHANNEL_LAYERS = {
     "default": {
