@@ -12,7 +12,7 @@ router.register(r'order-stats', OrderStatsView, basename='order-stats')
 urlpatterns = [
     path('', include(router.urls)),
     path('orders/<uuid:pk>/status/', OrderStatusUpdateView.as_view(), name='order-status-update'),
-    path('orders/<uuid:pk>/pay/', OrderPaymentView.as_view(), name='order-payment'),
+    path('orders/<uuid:pk>/payment/', OrderPaymentView.as_view(), name='order-payment'),
     # Public APIs (for customers)
     path('public/orders/create/', PublicOrderCreateView.as_view(), name='public-order-create'),
     path('public/orders/<uuid:order_id>/', PublicOrderDetailView.as_view(), name='public-order-detail'),

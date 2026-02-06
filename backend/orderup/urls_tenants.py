@@ -15,4 +15,8 @@ urlpatterns = [
     path('api/admin/orders/<uuid:pk>/status/', OrderStatusUpdateView.as_view(), name='order-status-update'),
     # QR Code URLs
     path('api/', include('qrcodes.urls')),
+    # Store URLs (includes customer APIs)
+    path('api/', include('store.urls')),
+    # Orders URLs (includes public order creation and payment)
+    path('api/', include('orders.urls')),
 ]

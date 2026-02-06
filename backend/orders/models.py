@@ -1,5 +1,8 @@
 from django.db import models
 from django_tenants.models import TenantMixin
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class Order(models.Model):
@@ -46,6 +49,7 @@ class Order(models.Model):
     qr_code = models.ForeignKey('qrcodes.QRCode', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     table = models.ForeignKey('store.Table', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     session_id = models.CharField(max_length=255, blank=True, null=True, help_text="Cart session ID for linking with customer")
+    customer = models.ForeignKey('customers.Customer', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     special_instructions = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -241,7 +241,7 @@ class PublicOrderDetailView(APIView):
 
 
 class OrderPaymentView(APIView):
-    """Mock Payment API"""
+    """Payment API with comprehensive payment service"""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request, pk):
@@ -256,21 +256,20 @@ class OrderPaymentView(APIView):
             if not session_id or (order.session_id and order.session_id != session_id):
                 return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
 
-        method = request.data.get('method', 'cash')
+        payment_method = request.data.get('method', 'cash')
+        payment_details = request.data.get('payment_details', {})
         
-        if method not in ['cash', 'card', 'promptpay']:
-            return Response({'error': 'Invalid payment method'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        order.payment_method = method
-        # Mock logic: Card/PromptPay = Paid immediately, Cash = Pending
-        order.payment_status = 'paid' if method != 'cash' else 'pending'
-        order.save()
+        # Use PaymentService to process payment
+        from .services import PaymentService
+        result = PaymentService.process_payment(
+            order_id=order.id,
+            payment_method=payment_method,
+            payment_details=payment_details
+        )
         
-        # Send update
-        send_order_update(request, order, update_type='payment_processed')
-        
-        return Response({
-            'status': 'success', 
-            'payment_status': order.payment_status,
-            'message': 'Payment processed successfully'
-        })
+        if result['success']:
+            # Send WebSocket update
+            send_order_update(request, order, update_type='payment_processed')
+            return Response(result, status=status.HTTP_200_OK)
+        else:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
