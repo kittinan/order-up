@@ -6,6 +6,7 @@ import { useCart } from '@/contexts/CartContext';
 import { CartButton } from '@/components/CartButton';
 import { CartDrawer } from '@/components/CartDrawer';
 import { Toast } from '@/components/Toast';
+import { QRModal } from '@/components/QRModal';
 import { useToast } from '@/hooks/useToast';
 import { fetchMenu } from '@/utils/api';
 
@@ -63,6 +64,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
   useEffect(() => {
     // Get hostname, default to pizza.localhost for development
@@ -108,6 +110,15 @@ export default function Home() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsQRModalOpen(true)}
+                      className="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center hover:bg-purple-500/20 transition-colors"
+                      title="View QR Codes"
+                    >
+                      <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                      </svg>
+                    </button>
                     <CartButton 
                       onClick={() => setIsCartOpen(true)}
                       className="w-8 h-8 bg-[var(--primary-color)]/10 rounded-full flex items-center justify-center"
@@ -253,6 +264,13 @@ export default function Home() {
         <CartDrawer 
           isOpen={isCartOpen} 
           onClose={() => setIsCartOpen(false)} 
+        />
+
+        {/* QR Modal */}
+        <QRModal
+          isOpen={isQRModalOpen}
+          onClose={() => setIsQRModalOpen(false)}
+          restaurantName={tenant?.name || 'Restaurant'}
         />
 
         {/* Toast Notification */}

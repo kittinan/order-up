@@ -31,6 +31,7 @@ TENANT_APPS = (
     'rest_framework',
     'store',
     'orders',
+    'qrcodes',
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]

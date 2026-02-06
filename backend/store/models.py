@@ -20,6 +20,7 @@ class Item(models.Model):
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image_url = models.URLField(blank=True, null=True)
+    qr_code = models.CharField(max_length=255, blank=True, null=True, help_text="QR code link for this item")
     is_available = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
 
@@ -100,3 +101,47 @@ class CartItemModifier(models.Model):
     @property
     def total_price(self):
         return self.quantity * self.modifier_option.price_adjustment
+
+
+class Table(models.Model):
+    TABLE_STATUS_CHOICES = [
+        ('available', 'Available'),
+        ('occupied', 'Occupied'),
+        ('reserved', 'Reserved'),
+        ('maintenance', 'Under Maintenance'),
+    ]
+    
+    name = models.CharField(max_length=50)  # e.g., "Table 1", "Booth A"
+    capacity = models.PositiveIntegerField(default=4)
+    status = models.CharField(
+        max_length=20, 
+        choices=TABLE_STATUS_CHOICES,
+        default='available'
+    )
+    location = models.CharField(max_length=100, blank=True)  # e.g., "Main Floor", "Outdoor"
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Table"
+        verbose_name_plural = "Tables"
+
+    def __str__(self):
+        return self.name
+
+
+class Customer(models.Model):
+    phone = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=200)
+    points = models.IntegerField(default=0)
+    joined_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-points']
+
+    def __str__(self):
+        return f"{self.name} ({self.phone}) - {self.points} pts"

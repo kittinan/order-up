@@ -13,4 +13,6 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/admin/order-stats/', OrderStatsView.as_view(), name='admin-order-stats'),
     path('api/admin/orders/<uuid:pk>/status/', OrderStatusUpdateView.as_view(), name='order-status-update'),
+    # QR Code URLs
+    path('api/', include('qrcodes.urls')),
 ]
