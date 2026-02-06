@@ -1,0 +1,208 @@
+name: OrderUp CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [closed]
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to staging
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          
+          # Create SSH directory and setup key
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/staging_key
+          chmod 600 ~/.ssh/staging_key
+          ssh-keyscan -H $STAGING_HOST >> ~/.ssh/known_hosts
+          
+          # Deploy to staging
+          ssh -i ~/.ssh/staging_key $STAGING_USER@$STAGING_HOST << 'EOF'
+            cd /opt/orderup-staging
+            git pull origin develop
+            docker-compose -f docker-compose.yml pull
+            docker-compose -f docker-compose.yml down
+            docker-compose -f docker-compose.yml up -d
+            
+            # Run migrations
+            docker-compose -f docker-compose.yml exec -T backend python manage.py migrate
+            
+            # Health check
+            sleep 10
+            curl -f http://localhost:8001/health/ || exit 1
+            echo "✅ Staging deployment completed successfully"
+          EOF
+          
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Pre-deployment backup
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          echo "💾 Creating pre-deployment backup..."
+          
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/production_key
+          chmod 600 ~/.ssh/production_key
+          ssh-keyscan -H $PRODUCTION_HOST >> ~/.ssh/known_hosts
+          
+          ssh -i ~/.ssh/production_key $PRODUCTION_USER@$PRODUCTION_HOST << 'EOF'
+            cd /opt/orderup
+            ./scripts/backup.sh
+            echo "✅ Backup completed"
+          EOF
+      
+      - name: Deploy to production
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          echo "🚀 Deploying to production environment..."
+          
+          # Deploy with zero downtime
+          ssh -i ~/.ssh/production_key $PRODUCTION_USER@$PRODUCTION_HOST << 'EOF'
+            cd /opt/orderup
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Pull new Docker images
+            docker-compose -f docker-compose.yml pull
+            
+            # Deploy with blue-green strategy
+            docker-compose -f docker-compose-blue.yml up -d --scale backend=2
+            
+            # Run migrations on new containers
+            docker-compose -f docker-compose-blue.yml exec -T backend-blue python manage.py migrate
+            
+            # Health check on new deployment
+            sleep 15
+            curl -f http://localhost:8001/health/ || exit 1
+            
+            # Switch traffic to new deployment
+            docker-compose -f docker-compose.yml down
+            docker-compose -f docker-compose-blue.yml down
+            docker-compose -f docker-compose.yml up -d
+            
+            echo "✅ Production deployment completed successfully"
+          EOF
+      
+      - name: Post-deployment health check
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          echo "🔍 Running post-deployment health checks..."
+          
+          ssh -i ~/.ssh/production_key $PRODUCTION_USER@$PRODUCTION_HOST << 'EOF'
+            # Wait for services to be ready
+            sleep 30
+            
+            # Check backend health
+            if curl -f http://localhost:8001/health/; then
+              echo "✅ Backend health check passed"
+            else
+              echo "❌ Backend health check failed"
+              exit 1
+            fi
+            
+            # Check frontend health
+            if curl -f http://localhost:3001/; then
+              echo "✅ Frontend health check passed"
+            else
+              echo "❌ Frontend health check failed"
+              exit 1
+            fi
+            
+            # Check database connectivity
+            docker-compose -f docker-compose.yml exec -T backend python manage.py dbshell --command="SELECT 1;"
+            
+            echo "✅ All health checks passed"
+          EOF
+      
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && needs.deploy-production.result == 'failure'
+    needs: deploy-production
+    
+    steps:
+      - name: Rollback deployment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+        run: |
+          echo "🔄 Rolling back deployment..."
+          
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/production_key
+          chmod 600 ~/.ssh/production_key
+          ssh-keyscan -H $PRODUCTION_HOST >> ~/.ssh/known_hosts
+          
+          ssh -i ~/.ssh/production_key $PRODUCTION_USER@$PRODUCTION_HOST << 'EOF'
+            cd /opt/orderup
+            
+            # Restore from backup
+            ./scripts/restore.sh
+            
+            # Restart services with previous version
+            docker-compose -f docker-compose.yml down
+            docker-compose -f docker-compose.yml up -d
+            
+            echo "✅ Rollback completed"
+          EOF
+      
+      - name: Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          channel: '#deployments'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

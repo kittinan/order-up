@@ -12,6 +12,7 @@ ALLOWED_HOSTS = ['*']
 SHARED_APPS = (
     'django_tenants',  # mandatory
     'customers', # you must list the app where your tenant model resides in
+    'admin_api',  # Admin dashboard APIs
     'django.contrib.contenttypes',
     'django.contrib.admin',
     'django.contrib.auth',
