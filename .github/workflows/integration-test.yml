@@ -1,0 +1,94 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: orderup
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -U postgres -d orderup; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+        env:
+          PGHOST: postgres
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: password
+          PGDATABASE: orderup
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install django djangorestframework django-tenants psycopg2-binary
+        working-directory: ./backend
+      
+      - name: Run Migrations
+        run: |
+          cd backend
+          python manage.py migrate --run-syncdb
+        env:
+          DATABASE_URL: postgres://postgres:password@postgres:5432/orderup
+          REDIS_URL: redis://redis:6379/0
+      
+      - name: Create Superuser
+        run: |
+          cd backend
+          echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('admin', 'admin@orderup.com', 'admin123')" | python manage.py shell
+        env:
+          DATABASE_URL: postgres://postgres:password@postgres:5432/orderup
+          REDIS_URL: redis://redis:6379/0
+      
+      - name: Run Backend Integration Tests
+        run: |
+          cd backend
+          python manage.py test admin_api
+        env:
+          DATABASE_URL: postgres://postgres:password@postgres:5432/orderup
+          REDIS_URL: redis://redis:6379/0
+      
+      - name: Run Frontend Integration Tests
+        run: |
+          # Test Admin APIs
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/admin/stats/overview/
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/admin/tenants/
+          curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/api/admin/analytics/revenue/
+        env:
+          DATABASE_URL: postgres://postgres:password@postgres:5432/orderup
+          REDIS_URL: redis://redis:6379/0
+      
+      - name: Upload Integration Test Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-report
+          path: backend/integration-test-report.txt
+          if-no-files-found: ignore
