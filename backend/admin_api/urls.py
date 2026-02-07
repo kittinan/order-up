@@ -2,13 +2,13 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # System statistics
-    path('stats/', views.system_stats, name='admin-stats'),
+    # System statistics - เปลี่ยนเป็น overview/
+    path('stats/overview/', views.system_stats, name='admin-stats-overview'),
     
-    # Tenant management
+    # Tenant management - เพิ่ม POST method support
     path('tenants/', views.tenants_list, name='admin-tenants'),
     path('tenants/<uuid:tenant_id>/orders/', views.tenant_orders, name='admin-tenant-orders'),
     
-    # Analytics
-    path('analytics/', views.analytics, name='admin-analytics'),
+    # Analytics - เปลี่ยนเป็น revenue/
+    path('analytics/revenue/', views.analytics, name='admin-analytics-revenue'),
 ]

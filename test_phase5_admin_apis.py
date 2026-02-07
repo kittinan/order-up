@@ -22,36 +22,36 @@ from rest_framework import status
 sys.path.insert(0, '/home/tun/workspace/orderup/backend')
 
 # Configure Django settings
-if not settings.configured:
-    settings.configure(
-        DEBUG=True,
-        DATABASES={
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': ':memory:',
-            }
-        },
-        INSTALLED_APPS=[
-            'django.contrib.auth',
-            'django.contrib.contenttypes',
-            'rest_framework',
-            'customers',
-            'orders',
-            'store',
-            'qrcodes',
-        ],
-        SECRET_KEY='test-secret-key-for-phase5-admin',
-        USE_TZ=True,
-        REST_FRAMEWORK={
-            'DEFAULT_AUTHENTICATION_CLASSES': [
-                'rest_framework.authentication.SessionAuthentication',
-                'rest_framework.authentication.TokenAuthentication',
-            ],
-            'DEFAULT_PERMISSION_CLASSES': [
-                'rest_framework.permissions.IsAuthenticated',
-            ],
-        }
-    )
+# if not settings.configured:
+#     settings.configure(
+#         DEBUG=True,
+#         DATABASES={
+#             'default': {
+#                 'ENGINE': 'django.db.backends.sqlite3',
+#                 'NAME': ':memory:',
+#             }
+#         },
+#         INSTALLED_APPS=[
+#             'django.contrib.auth',
+#             'django.contrib.contenttypes',
+#             'rest_framework',
+#             'customers',
+#             'orders',
+#             'store',
+#             'qrcodes',
+#         ],
+#         SECRET_KEY='test-secret-key-for-phase5-admin',
+#         USE_TZ=True,
+#         REST_FRAMEWORK={
+#             'DEFAULT_AUTHENTICATION_CLASSES': [
+#                 'rest_framework.authentication.SessionAuthentication',
+#                 'rest_framework.authentication.TokenAuthentication',
+#             ],
+#             'DEFAULT_PERMISSION_CLASSES': [
+#                 'rest_framework.permissions.IsAuthenticated',
+#             ],
+#         }
+#     )
 
 django.setup()
 

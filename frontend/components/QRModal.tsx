@@ -88,32 +88,34 @@ export const QRModal: React.FC<QRModalProps> = ({
 
           <div className="p-6">
             {selectedTable ? (
-              {/* QR Code Display */}
-              <div className="space-y-6">
-                <button
-                  onClick={() => setSelectedTable(null)}
-                  className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                  Back to Tables
-                </button>
-                
-                <QRCodeDisplay
-                  code={selectedTable.code}
-                  restaurantName={restaurantName}
-                  tableName={selectedTable.table_name}
-                  expiresAt={selectedTable.expires_at}
-                />
-              </div>
+              <>
+                {/* QR Code Display */}
+                <div className="space-y-6">
+                  <button
+                    onClick={() => setSelectedTable(null)}
+                    className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    Back to Tables
+                  </button>
+
+                  <QRCodeDisplay
+                    code={selectedTable.code}
+                    restaurantName={restaurantName}
+                    tableName={selectedTable.table_name}
+                    expiresAt={selectedTable.expires_at}
+                  />
+                </div>
+              </>
             ) : (
-              {/* Table Selection */}
               <div className="space-y-4">
+                {/* Table Selection */}
                 <p className="text-gray-600 mb-6">
                   Select a table to view its QR code. Customers can scan the code to access the menu and place orders.
                 </p>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {tableQRCodes.map((table) => (
                     <button

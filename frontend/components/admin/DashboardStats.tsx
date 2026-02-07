@@ -28,7 +28,7 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         <div className="relative p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/90 text-sm font-medium">Today's Orders</p>
+              <p className="text-white/90 text-sm font-medium">Today&apos;s Orders</p>
               <p className="text-3xl font-bold mt-2">{stats.today_orders}</p>
               <p className="text-white/80 text-xs mt-1">Total orders today</p>
             </div>
@@ -49,7 +49,7 @@ export function DashboardStats({ stats }: DashboardStatsProps) {
         <div className="relative p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/90 text-sm font-medium">Today's Revenue</p>
+              <p className="text-white/90 text-sm font-medium">Today&apos;s Revenue</p>
               <p className="text-3xl font-bold mt-2">฿{stats.today_revenue.toLocaleString()}</p>
               <p className="text-white/80 text-xs mt-1">Total sales today</p>
             </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TenantList } from '@/components/admin/TenantList';
+import { TenantTable } from '@/components/admin/TenantTable';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 interface Tenant {
   id: string;
@@ -17,6 +18,26 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleViewTenant = (tenant: Tenant) => {
+    // Placeholder for viewing tenant details
+    console.log('View tenant:', tenant);
+    alert(`Viewing details for ${tenant.name}`);
+  };
+
+  const handleEditTenant = (tenant: Tenant) => {
+    // Placeholder for editing tenant
+    console.log('Edit tenant:', tenant);
+    alert(`Editing ${tenant.name}`);
+  };
+
+  const handleDeleteTenant = (tenantId: string) => {
+    // Placeholder for deleting tenant
+    if (confirm('Are you sure you want to delete this tenant?')) {
+      console.log('Delete tenant:', tenantId);
+      alert(`Tenant ${tenantId} deleted`);
+    }
+  };
 
   useEffect(() => {
     // Mock API call
@@ -73,9 +94,9 @@ export default function TenantsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <AdminLayout>
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Tenant Management</h1>
             <p className="mt-1 text-sm text-gray-500">Manage all registered restaurants and stores.</p>
@@ -111,7 +132,12 @@ export default function TenantsPage() {
             </div>
           ) : (
             <>
-              <TenantList tenants={filteredTenants} />
+              <TenantTable 
+                tenants={filteredTenants}
+                onViewTenant={handleViewTenant}
+                onEditTenant={handleEditTenant}
+                onDeleteTenant={handleDeleteTenant}
+              />
               
               {/* Pagination */}
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
@@ -131,6 +157,6 @@ export default function TenantsPage() {
           )}
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

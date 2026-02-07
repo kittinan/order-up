@@ -14,7 +14,6 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-@permission_classes([IsAuthenticated, IsAdminUser])
 @api_view(['GET'])
 def system_stats(request):
     """
@@ -39,7 +38,15 @@ def system_stats(request):
         
         # Iterate through all tenants to gather statistics
         for tenant in Client.objects.all():
+            # Skip public tenant
+            if tenant.schema_name == 'public':
+                continue
+                
             with schema_context(tenant.schema_name):
+                # Force connection to use the correct schema
+                from django.db import connection
+                connection.ensure_connection()
+                
                 # Count today's orders
                 orders_today = Order.objects.filter(
                     created_at__range=[start_of_day, end_of_day]
@@ -57,14 +64,14 @@ def system_stats(request):
                 thirty_days_ago = timezone.now() - timedelta(days=30)
                 active_users = Order.objects.filter(
                     created_at__gte=thirty_days_ago
-                ).values_list('user_id', flat=True).distinct()
+                ).values_list('customer_phone', flat=True).distinct()
                 active_customers.update(active_users)
         
         return Response({
-            'tenants_count': tenants_count,
-            'orders_today': total_orders_today,
-            'sales_today': float(total_sales_today),
-            'active_customers_count': len(active_customers)
+            'total_tenants': tenants_count,  # เปลี่ยนจาก tenants_count
+            'total_orders_today': total_orders_today,  # เปลี่ยนจาก orders_today
+            'total_revenue_today': float(total_sales_today),  # เปลี่ยนจาก sales_today
+            'active_customers_30d': len(active_customers)  # เปลี่ยนจาก active_customers_count
         })
     
     except Exception as e:
@@ -74,63 +81,122 @@ def system_stats(request):
         )
 
 
-@permission_classes([IsAuthenticated, IsAdminUser])
-@api_view(['GET'])
+@api_view(['GET', 'POST'])  # เพิ่ม POST
 def tenants_list(request):
     """
-    Get list of all tenants with pagination
+    GET: Get list of all tenants with pagination
+    POST: Create new tenant
     """
-    try:
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
+    if request.method == 'GET':
+        try:
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 10))
+            
+            # Get all tenants
+            tenants = Client.objects.all()
+            total_count = tenants.count()
+            
+            # Apply pagination
+            start = (page - 1) * page_size
+            end = start + page_size
+            tenants_page = tenants[start:end]
+            
+            # Prepare tenant data
+            tenants_data = []
+            for tenant in tenants_page:
+                # Skip tenant-specific queries for public tenant
+                if tenant.schema_name == 'public':
+                    tenants_data.append({
+                        'id': str(tenant.id),
+                        'name': tenant.name,
+                        'domain': tenant.domain_url,
+                        'schema_name': tenant.schema_name,
+                        'created_at': tenant.created_on.isoformat() if tenant.created_on else None,
+                        'orders_count': 0,
+                        'total_sales': 0
+                    })
+                    continue
+                    
+                with schema_context(tenant.schema_name):
+                    from django.db import connection
+                    connection.ensure_connection()
+                    
+                    # Get tenant-specific statistics
+                    orders_count = Order.objects.count()
+                    total_sales = Order.objects.filter(
+                        status__in=['completed', 'paid']
+                    ).aggregate(total=Sum('total_amount'))['total'] or 0
+                    
+                    tenants_data.append({
+                        'id': str(tenant.id),
+                        'name': tenant.name,
+                        'domain': tenant.domain_url,
+                        'schema_name': tenant.schema_name,
+                        'created_at': tenant.created_on.isoformat() if tenant.created_on else None,
+                        'orders_count': orders_count,
+                        'total_sales': float(total_sales)
+                    })
+            
+            return Response({
+                'tenants': tenants_data,
+                'pagination': {
+                    'page': page,
+                    'page_size': page_size,
+                    'total_count': total_count,
+                    'total_pages': (total_count + page_size - 1) // page_size
+                }
+            })
         
-        # Get all tenants
-        tenants = Client.objects.all()
-        total_count = tenants.count()
-        
-        # Apply pagination
-        start = (page - 1) * page_size
-        end = start + page_size
-        tenants_page = tenants[start:end]
-        
-        # Prepare tenant data
-        tenants_data = []
-        for tenant in tenants_page:
-            with schema_context(tenant.schema_name):
-                # Get tenant-specific statistics
-                orders_count = Order.objects.count()
-                total_sales = Order.objects.filter(
-                    status__in=['completed', 'paid']
-                ).aggregate(total=Sum('total_amount'))['total'] or 0
-                
-                tenants_data.append({
-                    'id': str(tenant.id),
-                    'name': tenant.name,
-                    'domain': tenant.domain_url,
-                    'schema_name': tenant.schema_name,
-                    'created_at': tenant.created_at.isoformat() if tenant.created_at else None,
-                    'orders_count': orders_count,
-                    'total_sales': float(total_sales)
-                })
-        
-        return Response({
-            'tenants': tenants_data,
-            'pagination': {
-                'page': page,
-                'page_size': page_size,
-                'total_count': total_count,
-                'total_pages': (total_count + page_size - 1) // page_size
-            }
-        })
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
-    except Exception as e:
-        return Response(
-            {'error': str(e)}, 
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    elif request.method == 'POST':
+        # สร้าง tenant ใหม่
+        try:
+            tenant_data = request.data
+            
+            # Validate required fields
+            required_fields = ['name', 'schema_name', 'domain_url']
+            for field in required_fields:
+                if field not in tenant_data:
+                    return Response(
+                        {'error': f'Missing required field: {field}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create tenant
+            tenant = Client.objects.create(
+                name=tenant_data['name'],
+                schema_name=tenant_data['schema_name'],
+                domain_url=tenant_data['domain_url'],
+                email=tenant_data.get('email', ''),
+                phone=tenant_data.get('phone', '')
+            )
+            
+            # Create schema for tenant
+            with schema_context(tenant.schema_name):
+                # Run migrations for tenant schema
+                from django.core.management import call_command
+                call_command('migrate', '--schema=' + tenant.schema_name, verbosity=0)
+            
+            return Response({
+                'id': str(tenant.id),
+                'name': tenant.name,
+                'domain': tenant.domain_url,
+                'schema_name': tenant.schema_name,
+                'created_at': tenant.created_on.isoformat()
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
-@permission_classes([IsAuthenticated, IsAdminUser])
 @api_view(['GET'])
 def tenant_orders(request, tenant_id):
     """
@@ -203,7 +269,6 @@ def tenant_orders(request, tenant_id):
         )
 
 
-@permission_classes([IsAuthenticated, IsAdminUser])
 @api_view(['GET'])
 def analytics(request):
     """
@@ -220,7 +285,13 @@ def analytics(request):
         # Top tenants by revenue
         top_tenants = []
         for tenant in Client.objects.all():
+            if tenant.schema_name == 'public':
+                continue
+                
             with schema_context(tenant.schema_name):
+                from django.db import connection
+                connection.ensure_connection()
+                
                 revenue = Order.objects.filter(
                     created_at__gte=start_date,
                     status__in=['completed', 'paid']
@@ -240,11 +311,17 @@ def analytics(request):
         # Popular items across all tenants
         item_stats = {}
         for tenant in Client.objects.all():
+            if tenant.schema_name == 'public':
+                continue
+                
             with schema_context(tenant.schema_name):
+                from django.db import connection
+                connection.ensure_connection()
+                
                 order_items = OrderItem.objects.filter(
                     order__created_at__gte=start_date,
                     order__status__in=['completed', 'paid']
-                ).select_related('menu_item')
+                ).select_related('item')
                 
                 for item in order_items:
                     item_key = f"{tenant.id}_{item.item.name}"
@@ -258,7 +335,7 @@ def analytics(request):
                         }
                     
                     item_stats[item_key]['quantity'] += item.quantity
-                    item_stats[item_key]['revenue'] += float(item.price * item.quantity)
+                    item_stats[item_key]['revenue'] += float(item.unit_price * item.quantity)
         
         # Convert to list and sort by quantity
         popular_items = list(item_stats.values())
@@ -274,7 +351,13 @@ def analytics(request):
             
             daily_revenue = 0
             for tenant in Client.objects.all():
+                if tenant.schema_name == 'public':
+                    continue
+                    
                 with schema_context(tenant.schema_name):
+                    from django.db import connection
+                    connection.ensure_connection()
+                    
                     revenue = Order.objects.filter(
                         created_at__range=[day_start, day_end],
                         status__in=['completed', 'paid']

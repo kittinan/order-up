@@ -12,6 +12,8 @@ ALLOWED_HOSTS = ['*']
 SHARED_APPS = (
     'django_tenants',  # mandatory
     'customers', # you must list the app where your tenant model resides in
+    'qrcodes',    # qrcodes references store.table
+    'store',      # store tables referenced by qrcodes
     'admin_api',  # Admin dashboard APIs
     'django.contrib.contenttypes',
     'django.contrib.admin',
@@ -25,14 +27,12 @@ SHARED_APPS = (
 )
 
 TENANT_APPS = (
+    'orders',     # Moved to TENANT_APPS to fix cross-schema FK issue
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'store',
-    'orders',
-    'qrcodes',
 )
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]

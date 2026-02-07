@@ -1,13 +1,13 @@
 from .settings import *
 
-# Test settings - use PostgreSQL for testing with django-tenants
+# Test settings - use PostgreSQL for testing
 DATABASES = {
     'default': {
-        'ENGINE': 'django_tenants.postgresql_backend',
+        'ENGINE': 'django.db.backends.postgresql',  # Use regular backend for unit tests
         'NAME': 'orderup_test',
         'USER': 'postgres',
         'PASSWORD': 'password',
-        'HOST': 'localhost',
+        'HOST': 'db',
         'PORT': '5432',
     }
 }
@@ -21,16 +21,3 @@ CHANNEL_LAYERS = {
 
 # Use test runner
 TEST_RUNNER = 'django.test.runner.DiscoverRunner'
-
-# Test-specific tenant settings
-TENANT_TESTS = True
-
-# Disable migrations for faster testing  
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-    
-    def __getitem__(self, item):
-        return None
-
-MIGRATION_MODULES = DisableMigrations()

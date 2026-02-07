@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Item, ModifierGroup, ModifierOption, Cart, CartItem, CartItemModifier
+from .models import Category, Item, ModifierGroup, ModifierOption, Cart, CartItem, CartItemModifier, Customer
 from customers.models import Client
 
 class TenantBrandingSerializer(serializers.ModelSerializer):
@@ -95,3 +95,17 @@ class CartItemUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CartItem
         fields = ['quantity', 'special_instructions']
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'name', 'phone', 'email', 'points', 'membership_tier', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'points', 'membership_tier', 'created_at', 'updated_at']
+
+
+class CustomerTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['id', 'name', 'phone', 'points', 'membership_tier']
+        read_only_fields = ['id', 'points', 'membership_tier']

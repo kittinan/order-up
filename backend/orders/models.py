@@ -57,11 +57,11 @@ class Order(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['status']),
-            models.Index(fields=['created_at']),
-            models.Index(fields=['status', 'created_at']),
-            models.Index(fields=['qr_code']),
-            models.Index(fields=['session_id']),
+            models.Index(fields=['status'], name='idx_order_status'),
+            models.Index(fields=['created_at'], name='idx_order_created_at'),
+            models.Index(fields=['status', 'created_at'], name='idx_order_status_created_at'),
+            models.Index(fields=['qr_code'], name='idx_order_qr_code'),
+            models.Index(fields=['session_id'], name='idx_order_session_id'),
         ]
 
     def __str__(self):
